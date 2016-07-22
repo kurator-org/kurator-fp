@@ -5,7 +5,6 @@ import org.kurator.actors.io.util.DwcArchiveExtractor;
 import org.kurator.messages.ExtractDwcArchive;
 import org.kurator.messages.MoreData;
 import org.reflections.Reflections;
-import scala.sys.Prop;
 
 import java.io.File;
 import java.util.HashMap;
@@ -28,7 +27,7 @@ public class Main {
         final ActorRef printer = system.actorOf(Props.create(PrinterActor.class));
         final ActorRef reader = system.actorOf(Props.create(ReaderActor.class));
 
-        final ActorRef test = system.actorOf(Props.create(FileReader.class));
+        final ActorRef test = system.actorOf(Props.create(GenericReaderActor.class));
         final ActorRef dwca = system.actorOf(Props.create(DwcArchiveExtractor.class, producer, new File("/home/lowery/Downloads/dwca-mczbase-v162.23.zip")));
         //final ActorRef reader = system.actorOf(Props.create(DwCaReader.class, archivePath), "reader");
 

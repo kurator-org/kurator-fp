@@ -22,7 +22,7 @@ import java.nio.file.Paths;
 /**
  * Created by lowery on 7/21/16.
  */
-public class FileReader extends UntypedActor {
+public class GenericReaderActor extends UntypedActor {
     private Tika tika = new Tika();
     private String type;
 
