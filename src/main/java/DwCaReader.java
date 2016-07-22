@@ -96,18 +96,18 @@ public class DwCaReader extends UntypedActor {
         				byte[] buffer = new byte[1024];
 						ZipInputStream inzip = new ZipInputStream(new FileInputStream(file));
 						ZipEntry entry =  inzip.getNextEntry();
-						while (entry!=null) { 
+						while (entry!=null) {
 					    	   String fileName = entry.getName();
 					           File expandedFile = new File(outputDirectory.getPath() + File.separator + fileName);
 					            new File(expandedFile.getParent()).mkdirs();
-					            FileOutputStream expandedfileOutputStream = new FileOutputStream(expandedFile);             
+					            FileOutputStream expandedfileOutputStream = new FileOutputStream(expandedFile);
 					            int len;
 					            while ((len = inzip.read(buffer)) > 0) {
 					       		    expandedfileOutputStream.write(buffer, 0, len);
 					            }
-					 
-					            expandedfileOutputStream.close();   
-					            entry = inzip.getNextEntry();							
+
+					            expandedfileOutputStream.close();
+					            entry = inzip.getNextEntry();
 						}
 						inzip.closeEntry();
 						inzip.close();

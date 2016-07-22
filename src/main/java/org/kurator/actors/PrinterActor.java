@@ -12,7 +12,7 @@ public class PrinterActor extends UntypedActor {
     public void onReceive(Object message) throws Throwable {
         if (message instanceof String) {
             count++;
-            if (count % 1000 == 0)
+            if (count % 10000 == 0)
                 System.out.println(message + ": " + count + " messages processed.");
             sender().tell(new MoreData(), self());
         }
