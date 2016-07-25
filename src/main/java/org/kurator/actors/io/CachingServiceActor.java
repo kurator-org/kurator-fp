@@ -2,8 +2,6 @@ package org.kurator.actors.io;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
-import akka.stream.ActorMaterializer;
-import akka.stream.Materializer;
 import com.thoughtworks.xstream.XStream;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -11,19 +9,14 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.kurator.GeoLocateRequest;
 import org.kurator.messages.GeoLocateResponse;
-import org.kurator.messages.MoreData;
+import org.kurator.messages.RequestMoreData;
 import org.kurator.services.geolocate.model.Georef_Result_Set;
 import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutorService;
 
 import static akka.dispatch.Futures.future;
 import static akka.pattern.Patterns.pipe;
@@ -60,7 +53,7 @@ public class CachingServiceActor extends UntypedActor {
 
             // limit number of futures running at one time
             //if (futures < 10) {
-                sender().tell(new MoreData(), self());
+                sender().tell(new RequestMoreData(), self());
             //}
         } if (message instanceof GeoLocateResponse) {
             System.out.println("Response: " + message);
@@ -72,7 +65,7 @@ public class CachingServiceActor extends UntypedActor {
             //if (count % 1000 == 0)
                 System.out.println(result + ": " + count + " requests processed. (" + futures + " futures)" );
 
-            sender().tell(new MoreData(), self());
+            sender().tell(new RequestMoreData(), self());
         }
     }
 

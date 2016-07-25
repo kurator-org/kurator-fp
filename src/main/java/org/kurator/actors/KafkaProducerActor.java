@@ -6,18 +6,13 @@ import akka.event.LoggingAdapter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.network.Send;
-import org.kurator.messages.MoreData;
+import org.kurator.messages.PublishData;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
@@ -31,8 +26,7 @@ import static akka.pattern.Patterns.pipe;
  */
 public class KafkaProducerActor extends UntypedActor {
     private LoggingAdapter logger = Logging.getLogger(getContext().system(), this);
-
-    private ExecutionContext ec = getContext().system().dispatcher();
+    private ExecutionContext dispatcher = getContext().system().dispatcher();
 
     private KafkaProducer<String, String> producer;
     private final String topic;
@@ -59,23 +53,24 @@ public class KafkaProducerActor extends UntypedActor {
     }
 
     public void onReceive(Object message) throws Throwable {
-        if (message instanceof String) {
+        if (message instanceof PublishData) {
+            //logger.debug("Sending message via producer assigned to topic {}", topic);
+
             // publish message
-            Future<SendSuccessful> future = send((String) message);
-            pipe(future, ec).to(sender(), self());
+            Future<SendSuccessful> future = send(((PublishData) message).data());
+            pipe(future, dispatcher).to(sender(), self());
         } else {
             unhandled(message); // TODO: producer currently only supports messages serialized as a String
         }
     }
 
     public Future<SendSuccessful> send(final String data) throws ExecutionException, InterruptedException {
-        Future<SendSuccessful> future = future(new Callable<SendSuccessful>() {
-            public SendSuccessful call() throws Exception {
-                ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, data);
-                RecordMetadata metadata = producer.send(record).get(); // TODO: callbacks for error and success
-                return new SendSuccessful(metadata);
-            }
-        }, ec);
+        Future<SendSuccessful> future = future(() -> {
+            ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, data);
+            RecordMetadata metadata = producer.send(record).get(); // TODO: callbacks for error and success
+            //logger.debug("Producer send successful.");
+            return new SendSuccessful(metadata);
+        }, getContext().system().dispatcher());
 
         return future;
     }

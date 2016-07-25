@@ -5,6 +5,6 @@ package org.kurator.messages;
  */
 
 
-public class MoreData {
+public class RequestMoreData {
     // Request that the consumer poll for more data or send the next record in the buffer
 }

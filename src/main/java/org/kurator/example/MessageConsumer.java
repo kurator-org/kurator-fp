@@ -4,7 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import org.kurator.actors.KafkaConsumerActor;
-import org.kurator.messages.MoreData;
+import org.kurator.messages.RequestMoreData;
 import org.kurator.messages.Start;
 import org.kurator.messages.WorkComplete;
 
@@ -26,7 +26,7 @@ public class MessageConsumer extends UntypedActor {
 
     public void onReceive(Object message) throws Throwable {
         if (message instanceof Start) {
-            consumer.tell(new MoreData(), self());
+            consumer.tell(new RequestMoreData(), self());
         } else if (message instanceof String) {
             count++;
 
@@ -41,7 +41,7 @@ public class MessageConsumer extends UntypedActor {
                 System.out.println("batch of work complete, last result = " + result);
 
             // request another record from the consumer when the worker is finished
-            consumer.tell(new MoreData(), self());
+            consumer.tell(new RequestMoreData(), self());
         }
     }
 }

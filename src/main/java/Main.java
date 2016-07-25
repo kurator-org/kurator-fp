@@ -6,8 +6,7 @@ import org.kurator.actors.io.readers.CsvReader;
 import org.kurator.actors.io.readers.GenericReaderActor;
 import org.kurator.actors.io.readers.JsonReader;
 import org.kurator.actors.io.readers.Reader;
-import org.kurator.messages.ExtractDwcArchive;
-import org.kurator.messages.MoreData;
+import org.kurator.messages.RequestMoreData;
 import org.reflections.Reflections;
 
 import java.io.File;
@@ -62,7 +61,7 @@ public class Main {
         //consumer.tell(new Start(), null);
 
         //Cancellable slowStep = system.scheduler().schedule(Duration.Zero(),
-        //        Duration.create(10, TimeUnit.MILLISECONDS), consumer, new MoreData(),
+        //        Duration.create(10, TimeUnit.MILLISECONDS), consumer, new RequestMoreData(),
         //        system.dispatcher(), printer);
 
         /* fast step
@@ -73,7 +72,7 @@ public class Main {
 
 
         //dwca.tell(new ExtractDwcArchive(), null);
-        consumer.tell(new MoreData(), geolocate);
+        consumer.tell(new RequestMoreData(), geolocate);
        /* Cancellable cancellable2 = system.scheduler().schedule(Duration.Zero(),
                 Duration.create(10, TimeUnit.MILLISECONDS), producer, ,
                 system.dispatcher(), null);*/

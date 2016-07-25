@@ -8,7 +8,7 @@ import akka.event.LoggingAdapter;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.kurator.GeoLocateRequest;
-import org.kurator.messages.MoreData;
+import org.kurator.messages.RequestMoreData;
 import org.kurator.messages.Validate;
 
 import java.io.FileNotFoundException;
@@ -32,7 +32,7 @@ public class GEORefValidator extends UntypedActor {
     public void onReceive(Object message) throws Throwable {
         if (message instanceof Validate) {
             // Start requesting records from the consumer
-            consumer.tell(new MoreData(), self());
+            consumer.tell(new RequestMoreData(), self());
         } else if (message instanceof String) {
             // Parse the data coming back from the consumer and perform the validation step
             JSONObject json = (JSONObject) parser.parse((String) message);
@@ -47,7 +47,7 @@ public class GEORefValidator extends UntypedActor {
             logger.debug(request.toString());
 
             // done, request another record
-            consumer.tell(new MoreData(), self());
+            consumer.tell(new RequestMoreData(), self());
         }
     }
 }
