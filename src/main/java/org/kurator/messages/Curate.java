@@ -1,14 +1,12 @@
 package org.kurator.messages;
 
 import java.io.File;
+import java.util.Objects;
 
-/**
- * Created by lowery on 7/21/16.
- */
-public class ExtractDwcArchive {
+public final class Curate {
     private File file;
 
-    public ExtractDwcArchive(File file) {
+    public Curate(File file) {
         this.file = file;
     }
 

@@ -1,4 +1,4 @@
-package org.kurator.actors.io;
+package org.kurator.actors.io.readers;
 
 import akka.actor.PathUtils;
 import akka.actor.UntypedActor;

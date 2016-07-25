@@ -1,6 +1,7 @@
-package org.kurator.actors.io.util;
+package org.kurator.actors.io;
 
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
@@ -17,7 +18,8 @@ import org.gbif.dwc.text.Archive;
 import org.gbif.dwc.text.ArchiveFactory;
 import org.gbif.dwc.text.UnsupportedArchiveException;
 import org.json.simple.JSONObject;
-import org.kurator.messages.DwcArchiveExtracted;
+import org.kurator.actors.KafkaConsumerActor;
+import org.kurator.actors.KafkaProducerActor;
 import org.kurator.messages.ExtractDwcArchive;
 import org.kurator.messages.NextRecord;
 import scala.concurrent.ExecutionContext;
@@ -37,27 +39,26 @@ import static akka.pattern.Patterns.pipe;
 /**
  * Created by lowery on 7/21/16.
  */
-public class DwcArchiveExtractor extends UntypedActor {
+public class DwCaExtractor extends UntypedActor {
     private LoggingAdapter logger = Logging.getLogger(getContext().system(), this);
 
+    private static final String TOPIC = "georeference";
+
     private ExecutionContext ec = getContext().system().dispatcher();
-    private final File zipFile;
     private Iterator<StarRecord> iterator;
 
-    private ActorRef kafkaProducer;
-    private long cValidRecords;
+    private ActorRef producer;
 
-    public DwcArchiveExtractor(ActorRef producer, File file) throws FileNotFoundException {
-        this.zipFile = file;
-        this.kafkaProducer = producer;
+    public DwCaExtractor() throws FileNotFoundException {
+        this.producer = getContext().actorOf(Props.create(KafkaProducerActor.class, TOPIC), "producer");
     }
 
-    public void unzip() {
+    public Future unzip(final File file) {
         Future<DwcArchiveExtracted> future = future(new Callable<DwcArchiveExtracted>() {
             public DwcArchiveExtracted call() throws Exception {
-                Path outputDir = Files.createTempDirectory(zipFile.getName().replace(".", "_") + "_content");
+                Path outputDir = Files.createTempDirectory(file.getName().replace(".", "_") + "_content");
                 System.out.println(outputDir);
-                ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipFile));
+                ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(file));
                 ZipEntry entry = zipInputStream.getNextEntry();
 
                 while (entry != null) {
@@ -78,11 +79,16 @@ public class DwcArchiveExtractor extends UntypedActor {
                 zipInputStream.closeEntry();
                 zipInputStream.close();
 
-                return new DwcArchiveExtracted(outputDir);
+                Archive archive = openArchive(outputDir.toFile());
+                if (!isValidArchive(archive)) {
+                    logger.error("Invalid dwca archive.");
+                    // TODO: throw exception and send error message to supervisor
+                }
+                return new DwcArchiveExtracted(archive);
             }
         }, ec);
 
-        pipe(future, ec).to(self(), sender());
+        return future;
     }
 
     protected Archive openArchive(File outputDirectory) {
@@ -116,7 +122,7 @@ public class DwcArchiveExtractor extends UntypedActor {
         return result;
     }
 
-    protected boolean checkArchive(Archive dwcArchive) {
+    protected boolean isValidArchive(Archive dwcArchive) {
         boolean result = false;
         if (dwcArchive==null) {
             return result;
@@ -157,37 +163,51 @@ public class DwcArchiveExtractor extends UntypedActor {
     @Override
     public void onReceive(Object message) throws Throwable {
         if (message instanceof ExtractDwcArchive) {
-            unzip();
+            // Extract the dwc archive in a future
+            File file = ((ExtractDwcArchive) message).file();
+            Future<DwcArchiveExtracted> future = unzip(file);
+
+            // pipe the result of the future back to self
+            pipe(future, ec).to(self(), sender());
         } else if (message instanceof DwcArchiveExtracted) {
-            Archive archive = openArchive(((DwcArchiveExtracted) message).getOutputDir().toFile());
-            checkArchive(archive);
+            // initialize the actor and start reading records
+            Archive archive = ((DwcArchiveExtracted) message).archive();
+
             iterator = archive.iterator();
 
             if (iterator.hasNext()) {
                 self().tell(new NextRecord(), sender());
             }
         } else if (message instanceof NextRecord) {
-                StarRecord dwcrecord = iterator.next();
+            StarRecord record = iterator.next();
 
-            JSONObject record = new JSONObject();
-            for (Term term : dwcrecord.core().terms()) {
-                record.put(term.simpleName(), dwcrecord.core().value(term));
-            }
-            //System.out.println(row);
-                //SpecimenRecord record = new SpecimenRecord(dwcrecord);
-                kafkaProducer.tell(record.toJSONString(), self());
-                //Token<SpecimenRecord> t = new TokenWithProv<SpecimenRecord>(record,this.getClass().getSimpleName(),invoc);
-                cValidRecords++;
-            if (cValidRecords % 1000 == 0) {
-                System.out.println("Produced " + cValidRecords + " messages.");
+            // serialize record as json
+            JSONObject response = new JSONObject();
+            for (Term term : record.core().terms()) {
+                response.put(term.simpleName(), record.core().value(term));
             }
 
-            //self().tell(new NextRecord(), sender());
-                //listener.tell(t,getSelf());
-        } else if (message instanceof RecordMetadata) {
+            // publish record via kafka producer actor
+            producer.tell(response.toJSONString(), self());
+        } else if (message instanceof KafkaProducerActor.SendSuccessful) {
+            // if the message was published successfully send another record
             if (iterator.hasNext()) {
                 self().tell(new NextRecord(), sender());
             }
         }
     }
+
+    private class DwcArchiveExtracted {
+        private Archive archive;
+
+        public DwcArchiveExtracted(Archive archive) {
+            this.archive = archive;
+        }
+
+        public Archive archive() {
+            return archive;
+        }
+    }
 }
+
+

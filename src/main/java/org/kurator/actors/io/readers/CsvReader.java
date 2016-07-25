@@ -1,6 +1,4 @@
-package org.kurator.actors.io;
-
-import akka.actor.UntypedActor;
+package org.kurator.actors.io.readers;
 
 /**
  * Created by lowery on 7/21/16.

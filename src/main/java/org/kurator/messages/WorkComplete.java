@@ -11,4 +11,8 @@ public class WorkComplete {
     public WorkComplete(String result) {
         this.result = result;
     }
+
+    public String result() {
+        return result;
+    }
 }

@@ -1,7 +1,11 @@
 import akka.actor.*;
 import org.kurator.actors.*;
 import org.kurator.actors.io.*;
-import org.kurator.actors.io.util.DwcArchiveExtractor;
+import org.kurator.actors.io.DwCaExtractor;
+import org.kurator.actors.io.readers.CsvReader;
+import org.kurator.actors.io.readers.GenericReaderActor;
+import org.kurator.actors.io.readers.JsonReader;
+import org.kurator.actors.io.readers.Reader;
 import org.kurator.messages.ExtractDwcArchive;
 import org.kurator.messages.MoreData;
 import org.reflections.Reflections;
@@ -23,12 +27,12 @@ public class Main {
         final ActorRef consumer = system.actorOf(Props.create(KafkaConsumerActor.class, "dwca-topic"));
         final ActorRef producer = system.actorOf(Props.create(KafkaProducerActor.class, "dwca-topic"));
 
-        final ActorRef master = system.actorOf(Props.create(MasterActor.class, consumer, producer));
-        final ActorRef printer = system.actorOf(Props.create(PrinterActor.class));
-        final ActorRef reader = system.actorOf(Props.create(ReaderActor.class));
+        //final ActorRef master = system.actorOf(Props.create(MasterActor.class, consumer, producer));
+        //final ActorRef printer = system.actorOf(Props.create(PrinterActor.class));
+        //final ActorRef reader = system.actorOf(Props.create(ReaderActor.class));
 
         final ActorRef test = system.actorOf(Props.create(GenericReaderActor.class));
-        final ActorRef dwca = system.actorOf(Props.create(DwcArchiveExtractor.class, producer, new File("/home/lowery/Downloads/dwca-mczbase-v162.23.zip")));
+        final ActorRef dwca = system.actorOf(Props.create(DwCaExtractor.class, producer, new File("/home/lowery/Downloads/dwca-mczbase-v162.23.zip")));
         //final ActorRef reader = system.actorOf(Props.create(DwCaReader.class, archivePath), "reader");
 
         final ActorRef geolocate = system.actorOf(Props.create(CachingServiceActor.class), "geolocate");
@@ -37,7 +41,7 @@ public class Main {
         props.put("text/csv", CsvReader.class);
         props.put("text/plain", CsvReader.class);
         //props.put("application/xml", XmlReader.class);
-        props.put("application/zip", DwCaReader.class);
+        //props.put("application/zip", DwCaReader.class);
         props.put("application/json", JsonReader.class);
 
         Set<Class<?>> readers = new Reflections().getTypesAnnotatedWith(Reader.class);
@@ -68,7 +72,7 @@ public class Main {
             //producer.tell("test", reader);
 
 
-        dwca.tell(new ExtractDwcArchive(), null);
+        //dwca.tell(new ExtractDwcArchive(), null);
         consumer.tell(new MoreData(), geolocate);
        /* Cancellable cancellable2 = system.scheduler().schedule(Duration.Zero(),
                 Duration.create(10, TimeUnit.MILLISECONDS), producer, ,
