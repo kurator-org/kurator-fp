@@ -37,6 +37,7 @@ public class KafkaConsumerActor<T> extends UntypedActor {
     private String topic;
 
     private Queue<String> buffer = new LinkedList<>();
+    private List<ActorRef> listeners = new LinkedList<>();
 
     public KafkaConsumerActor(String topic, String groupId) {
         this.topic = topic;
@@ -74,7 +75,23 @@ public class KafkaConsumerActor<T> extends UntypedActor {
         } else if (message instanceof PollConsumer) {
             if (buffer.isEmpty()) {
                 logger.debug("Consumer polling for messages...");
-                poll(); // TODO: Handle failure
+
+                ConsumerRecords<String, String> records = consumer.poll(CONSUMER_TIMEOUT);
+
+                for (ConsumerRecord<String, String> record : records) {
+                    buffer.add(record.value());
+                }
+
+                logger.debug("Consumed {} messages from topic {} to buffer", records.count(), topic);
+
+                // TODO: Handle failure
+
+                // alert listeners that may be idle that the consumer has more data
+                if (!buffer.isEmpty()) {
+                    for (ActorRef listener : listeners) {
+                        listener.tell(new HasMoreData(), self());
+                    }
+                }
             }
         } else if (message instanceof RequestMoreData) {
             if (buffer.isEmpty()) {
@@ -84,21 +101,15 @@ public class KafkaConsumerActor<T> extends UntypedActor {
                 ReceivedMoreData response = new ReceivedMoreData(buffer.remove());
                 sender().tell(response, self());
             }
+        } else if (message instanceof RegisterListener) {
+            final ActorRef listener = sender();
+            listeners.add(listener);
+            logger.debug("registered listener {}", listener);
         } else if (message instanceof Stop) {
             logger.debug("Stopping kafka consumer with group id: {}", groupId, topic);
             // stop polling and terminate this actor
             pollingScheduler.cancel();
             context().stop(self());
         }
-    }
-
-    public void poll() {
-            ConsumerRecords<String, String> records = consumer.poll(CONSUMER_TIMEOUT);
-
-            for (ConsumerRecord<String, String> record : records) {
-                buffer.add(record.value());
-                //logger.debug("offset = %d, key = %s, value = %s\n", record.offset(), record.key(), record.value());
-            }
-        logger.debug("Consumed {} messages from topic {} to buffer", records.count(), topic);
     }
 }
