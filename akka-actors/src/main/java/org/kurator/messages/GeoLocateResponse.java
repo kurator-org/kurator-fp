@@ -1,6 +1,5 @@
 package org.kurator.messages;
 
-import com.thoughtworks.xstream.XStream;
 import org.kurator.services.geolocate.model.Georef_Result_Set;
 
 /**
