@@ -15,6 +15,8 @@ import org.dom4j.Document;
 
 import edu.tulane.museum.www.webservices.Georef_Result;
 import edu.tulane.museum.www.webservices.Georef_Result_Set;
+import org.filteredpush.kuration.services.geolocate.GeoLocateResponse;
+import org.filteredpush.kuration.services.geolocate.GeoRefResult;
 
 /**
  * Representation of a single georeference assertion as made by GeoLocate's service.
@@ -57,17 +59,17 @@ public class GeolocationResult implements Serializable {
 		return result;
 	}
 	
-	public static List<GeolocationResult> constructFromGeolocateResultSet(Georef_Result_Set results) { 
+	public static List<GeolocationResult> constructFromGeolocateResultSet(GeoLocateResponse results) {
 		ArrayList<GeolocationResult> resultList = new ArrayList<GeolocationResult>();
-		if (results !=null && results.getNumResults()>0) {
-		    int numResults = results.getNumResults(); 
+		if (results !=null && results.numResults()>0) {
+		    int numResults = results.numResults();
 			for (int i=0; i<numResults; i++) { 
-			   Georef_Result row = results.getResultSet(i);
-			   if (row.getScore()>MIN_SCORE_THRESHOLD) { 
+			   GeoRefResult row = results.resultSet()[i];
+			   if (row.score()>MIN_SCORE_THRESHOLD) {
 				   int uncertainty = 0;
 				   try { 
-					   if (row.getUncertaintyRadiusMeters()!=null && !row.getUncertaintyRadiusMeters().equals("Unavailable")) { 
-					      uncertainty = Integer.parseInt(row.getUncertaintyRadiusMeters());
+					   if (row.uncertaintyRadiusMeters()!=null && !row.uncertaintyRadiusMeters().equals("Unavailable")) {
+					      uncertainty = Integer.parseInt(row.uncertaintyRadiusMeters());
 					   }
 				   } catch (NumberFormatException ex) {  
 					   logger.debug(ex.getMessage());
@@ -75,11 +77,11 @@ public class GeolocationResult implements Serializable {
 					   logger.debug(e.getMessage());
 				   }
 				   GeolocationResult result = new GeolocationResult(
-						   row.getWGS84Coordinate().getLatitude(),
-						   row.getWGS84Coordinate().getLongitude(),
+						   row.wgs84Coordinate().latitude(),
+						   row.wgs84Coordinate().longitude(),
 						   uncertainty,
-						   row.getScore(),
-						   row.getParsePattern()
+						   row.score(),
+						   row.parsePattern()
 						   );
 				   resultList.add(result);
 			   }

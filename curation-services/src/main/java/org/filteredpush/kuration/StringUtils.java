@@ -1,5 +1,7 @@
 package org.filteredpush.kuration;
 
+import java.text.MessageFormat;
+
 /**
  * Created by lowery on 7/29/16.
  */
@@ -13,6 +15,10 @@ public class StringUtils {
         }
 
         return true;
+    }
+
+    public static String comment(String message, Object... args) {
+        return MessageFormat.format(message, args);
     }
 
 }

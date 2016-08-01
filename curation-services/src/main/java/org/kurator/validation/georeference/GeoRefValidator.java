@@ -3,105 +3,121 @@ package org.kurator.validation.georeference;
 import org.filteredpush.kuration.services.exceptions.ServiceException;
 import org.filteredpush.kuration.services.geolocate.GeoLocateRequest;
 import org.filteredpush.kuration.services.geolocate.GeoLocateResponse;
-import org.filteredpush.kuration.services.geolocate.GeoRefResultSet;
+import org.filteredpush.kuration.services.geolocate.GeoLocateService;
+import org.filteredpush.kuration.services.geolocate.GeoRefResult;
 import org.filteredpush.kuration.util.*;
+import org.kurator.validation.CurationEvent;
+import org.kurator.validation.Georeference;
 import org.nocrala.tools.gis.data.esri.shapefile.exception.InvalidShapeFileException;
+import scala.Int;
 
 import java.awt.geom.Path2D;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-import static org.filteredpush.kuration.services.geolocate.GeoLocateService.*;
 import static org.filteredpush.kuration.StringUtils.*;
 
 /**
  * Created by lowery on 7/29/16.
  */
 public class GeoRefValidator {
+    public void validate(String country, String stateProvince, String county, String locality, String latitude,
+                         String longitude, double thresholdDistanceKm) {
 
-    public void validate(String country, String stateProvince, String county, String locality,
-                         String latitude, String longitude) {
+        Georeference georeference = new Georeference(country, stateProvince, county, locality, latitude, longitude);
+
+        // Make values null if they don't contain valid lat/long
+        if (latitude != null && latitude.trim().length()==0) { latitude = null; }
+        if (longitude != null && longitude.trim().length()==0) { longitude = null; }
+
+        Double decimalLatitude = isNumeric(latitude) ? Double.parseDouble(latitude) : null;
+        Double decimalLongitude = isNumeric(longitude) ? Double.parseDouble(longitude) : null;
 
         // Look up locality in Tulane's GeoLocateService service
-        List<GeolocationResult> potentialMatches = queryGeoLocate(country, stateProvince, county, locality);
+        List<GeolocationResult> potentialMatches = queryGeoLocate(georeference, country, stateProvince,
+                county, locality, decimalLatitude, decimalLongitude);
 
-        if (potentialMatches.isEmpty())
-            status("GeoLocateService service can't find coordinates of Locality.", CurationComment.UNABLE_DETERMINE_VALIDITY);
-
-        // Make strings null if they don't contain valid lat/long values
-        latitude = isNumeric(latitude) ? latitude : null;
-        longitude = isNumeric(longitude) ? longitude : null;
+        if (potentialMatches.isEmpty()) {
+            georeference.apply(CurationStatus.UNABLE_DETERMINE_VALIDITY, "GeoLocateService service can't find " +
+                    "coordinates of Locality.");
+        }
 
         // Try to fill in missing values
-        if ((latitude == null || longitude == null)) {
-            fillInMissingValues(potentialMatches, latitude, longitude);
+        if ((decimalLatitude == null || decimalLongitude == null)) {
+            fillInMissingValues(georeference, potentialMatches, decimalLatitude, decimalLongitude, thresholdDistanceKm);
         }
 
     }
 
-    private void fillInMissingValues(List<GeolocationResult> potentialMatches, String latitude, String longitude) {
-        if (potentialMatches.size() > 0 &&
-                potentialMatches.get(0).getConfidence() > 80) {
+    public void fillInMissingValues(Georeference georeference, List<GeolocationResult> potentialMatches,
+                                     Double latitude, Double longitude, double thresholdDistanceKm) {
 
-            if (latitude !=null && longitude == null) {
-                // Try to fill in the longitude
-                if (GeolocationResult.isLocationNearAResult(
-                        Double.valueOf(latitude),
-                        potentialMatches.get(0).getLongitude(),
-                        potentialMatches,
-                        (int) Math.round(thresholdDistanceKm * 1000))) {
+        if (potentialMatches.size() > 0 && potentialMatches.get(0).getConfidence() > 80) {
 
-                    // if latitude plus longitude from best match is near a match, propose
-                    // the longitude from the best match.
-                    status("Added a longitude from {} as longitude was missing and geolocate had a confident match " +
-                            "near the original line of latitude.", CurationStatus.FILLED_IN, serviceName());
-
-                    // TODO: If we do this, then we need to add the datum, georeference source, georeference method, etc
-                    correctedLongitude = potentialMatches.get(0).getLongitude();
-                }
-            }
+            int thresholdDistanceMeters = (int) Math.round(thresholdDistanceKm * 1000);
 
             if (latitude != null && longitude == null) {
-                // Try to fill in the latitude
-                if (GeolocationResult.isLocationNearAResult(
-                        potentialMatches.get(0).getLatitude(),
-                        Double.valueOf(longitude),
-                        potentialMatches,
-                        (int)Math.round(thresholdDistanceKm * 1000))) {
+
+                // Try to fill in the longitude
+                if (GeolocationResult.isLocationNearAResult(latitude, potentialMatches.get(0).getLongitude(),
+                        potentialMatches, thresholdDistanceMeters)) {
 
                     // if latitude plus longitude from best match is near a match, propose
                     // the longitude from the best match.
-                    status("Added a latitude from {} as latitude was missing and geolocate had a confident match " +
-                            "near the original line of longitude.", CurationStatus.FILLED_IN, serviceName());
 
                     // TODO: If we do this, then we need to add the datum, georeference source, georeference method, etc
-                    correctedLatitude = potentialMatches.get(0).getLatitude();
-                }
-            }
+                    Map<String, String> correctedLongitude = Collections.singletonMap("longitude",
+                            potentialMatches.get(0).getLongitude().toString());
 
-            //Both coordinates in the original record are missing
-            if (latitude == null && longitude == null) {
-                status("Added a georeference using cached data or {} service since the original coordinates are " +
-                        "missing and geolocate had a confident match.", CurationComment.FILLED_IN, getServiceName());
+                    georeference.apply(CurationStatus.FILLED_IN, correctedLongitude, comment("Added a longitude from " +
+                            "{} as longitude was missing and geolocate had a confident match near the original line " +
+                            "of latitude.", serviceName()));
+                }
+
+            } else if (latitude == null && longitude != null) {
+
+                // Try to fill in the latitude
+                if (GeolocationResult.isLocationNearAResult(potentialMatches.get(0).getLatitude(), longitude,
+                        potentialMatches, thresholdDistanceMeters)) {
+
+                    // if latitude plus longitude from best match is near a match, propose
+                    // the longitude from the best match.
+
+                    // TODO: If we do this, then we need to add the datum, georeference source, georeference method, etc
+                    Map<String, String> correctedLatitude = Collections.singletonMap("latitude",
+                            potentialMatches.get(0).getLatitude().toString());
+
+                    georeference.apply(CurationStatus.FILLED_IN, correctedLatitude, comment("Added a latitude from " +
+                            "{} as latitude was missing and geolocate had a confident match near the original line " +
+                            "of longitude.", serviceName()));
+                }
+
+            } else if (latitude == null && longitude == null) {
+
+                //Both coordinates in the original record are missing
+
+                Map<String, String> correctedValues = new HashMap<>();
 
                 // TODO: If we do this, then we need to add the datum, georeference source, georeference method, etc.
-                correctedLatitude = potentialMatches.get(0).getLatitude();
-                correctedLongitude = potentialMatches.get(0).getLongitude();
-            }
+                correctedValues.put("latitude", potentialMatches.get(0).getLatitude().toString());
+                correctedValues.put("longitude", potentialMatches.get(0).getLongitude().toString());
 
-        } else {
-            status("No latitude and/or longitude provided, and geolocate didn't return a good match.",
-                    CurationComment.UNABLE_DETERMINE_VALIDITY);
+                georeference.apply(CurationComment.FILLED_IN, correctedValues, comment("Added a georeference using " +
+                        "cached data or {} service since the original coordinates are missing and geolocate had a " +
+                        "confident match.", serviceName()));
+
+            } else {
+
+                georeference.apply(CurationComment.UNABLE_DETERMINE_VALIDITY, "No latitude and/or longitude provided," +
+                        " and geolocate didn't return a good match.");
+
+            }
         }
     }
 
-    public List<GeolocationResult> queryGeoLocate(String country, String stateProvince, String county, String locality) {
-        List<GeolocationResult> potentialMatches = new ArrayList<>();
-
+    public List<GeolocationResult> queryGeoLocate(Georeference georeference, String country, String stateProvince,
+                                                  String county, String locality, double latitude, double longitude) {
         try {
 
             locality = locality.toLowerCase();
@@ -109,50 +125,40 @@ public class GeoRefValidator {
             boolean hwyX = locality.matches("bridge");
             boolean findWaterbody = locality.matches("(lake|pond|sea|ocean)");
 
-            GeoLocateRequest request = new GeoLocateRequest(
-                    country,
-                    stateProvince,
-                    county,
-                    locality,
-                    hwyX,
-                    findWaterbody
-            );
+            GeoLocateRequest request = new GeoLocateRequest(country, stateProvince, county, locality,
+                    hwyX, findWaterbody);
 
             // TODO: Can this service accept null values for any of the args?
-            GeoLocateResponse response = geoLocate2().queryGeoLocateMulti(request);
+            GeoLocateResponse response = GeoLocateService.geoLocate2().queryGeoLocateMulti(request);
 
-            comment("Found {} possible georeferences with Geolocate engine: {}",
-                    response.numResults(), response.engineVersion());
+            georeference.apply(comment("Found {} possible georeferences with Geolocate engine: {}",
+                    response.numResults(), response.engineVersion()));
 
             if (response != null && response.numResults() > 0) {
-                // TODO: add to the list of potentialMatches
+
+                for (GeoRefResult result : response.resultSet()) {
+                    long distance = GEOUtil.calcDistanceHaversineMeters(result.wgs84Coordinate().latitude(),
+                            result.wgs84Coordinate().longitude(), latitude, longitude) / 100;
+
+                    georeference.apply(comment("{} score:{} {} {} km:{}", result.parsePattern(), result.score(),
+                            result.wgs84Coordinate().latitude(), result.wgs84Coordinate().longitude(), distance));
+                }
+
+                return GeolocationResult.constructFromGeolocateResultSet(response);
             }
 
         } catch (ServiceException e) {
-            status(e.getMessage(), CurationStatus.UNABLE_DETERMINE_VALIDITY);
+            georeference.apply(CurationStatus.UNABLE_DETERMINE_VALIDITY, e.getMessage());
         }
 
         return null;
     }
 
     private String serviceName() {
-        return null; // TODO: define service name
+        return "GeoLocate"
     }
 
-    private void comment(String comment, Object... args) {
-        // TODO: implement event-souring
-        System.out.println("comment: " + MessageFormat.format(comment, args));
-    }
 
-    private void status(String comment, CurationStatus status, Object... args) {
-        // TODO: implement event-souring
-        System.out.println("status: " + MessageFormat.format(comment, args) + "(" + status + ")");
-    }
-
-    private void error(String error) {
-        // TODO: implement event-souring
-        System.out.println("error: " + error);
-    }
 
     public void more() {
           else {
@@ -363,15 +369,6 @@ public class GeoRefValidator {
                     setCurationStatus(CurationComment.UNABLE_DETERMINE_VALIDITY);
                 }
             }
-
-            //System.out.println("setCurationStatus(" + curationStatus);
-            //System.out.println("comment = " + comment);
-
-            //System.out.println("originalLng = " + originalLng);
-            //System.out.println("originalLat = " + originalLat);
-            //System.out.println("country = " + country);
-            //System.out.println("foundLng = " + foundLng);
-            //System.out.println("foundLat = " + foundLat);
 
         }
     }

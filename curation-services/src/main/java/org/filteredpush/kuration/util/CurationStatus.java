@@ -31,6 +31,9 @@ public enum CurationStatus {
      * was down and unable to be consulted).
      */
 
-    UNABLE_DETERMINE_VALIDITY
+    UNABLE_DETERMINE_VALIDITY,
+
+    NO_CHANGE,
+    INITIALIZED
 
 }
