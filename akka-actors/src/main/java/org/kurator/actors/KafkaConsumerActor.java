@@ -66,13 +66,17 @@ public class KafkaConsumerActor<T> extends UntypedActor {
 
     public void onReceive(Object message) throws Throwable {
         // TODO: Implement this logic as a FSM where the consumer is either busy polling for more data or ready to send
+
         if (message instanceof Start) {
+
             // Start polling periodically for incoming messages
             pollingScheduler = getContext().system().scheduler().schedule(Duration.Zero(),
                     Duration.create(1000, TimeUnit.MILLISECONDS), self(), new PollConsumer(), dispatcher, ActorRef.noSender());
 
             logger.debug("Started kafka consumer with group id: {}. Subscribed to topic: {}", groupId, topic);
+
         } else if (message instanceof PollConsumer) {
+
             if (buffer.isEmpty()) {
                 logger.debug("Consumer polling for messages...");
 
@@ -93,7 +97,9 @@ public class KafkaConsumerActor<T> extends UntypedActor {
                     }
                 }
             }
+
         } else if (message instanceof RequestMoreData) {
+
             if (buffer.isEmpty()) {
                 sender().tell(new ConsumerDrained(), self());
             } else {
@@ -101,15 +107,20 @@ public class KafkaConsumerActor<T> extends UntypedActor {
                 ReceivedMoreData response = new ReceivedMoreData(buffer.remove());
                 sender().tell(response, self());
             }
+
         } else if (message instanceof RegisterListener) {
+
             final ActorRef listener = sender();
             listeners.add(listener);
             logger.debug("registered listener {}", listener);
+
         } else if (message instanceof Stop) {
+
             logger.debug("Stopping kafka consumer with group id: {}", groupId, topic);
             // stop polling and terminate this actor
             pollingScheduler.cancel();
             context().stop(self());
+
         }
     }
 }

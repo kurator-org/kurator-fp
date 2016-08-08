@@ -5,9 +5,9 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import org.filteredpush.kuration.services.geolocate.GeoLocateRequest;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.kurator.GeoLocateRequest;
 import org.kurator.messages.RequestMoreData;
 import org.kurator.messages.Validate;
 
@@ -35,16 +35,13 @@ public class GEORefValidator extends UntypedActor {
             consumer.tell(new RequestMoreData(), self());
         } else if (message instanceof String) {
             // Parse the data coming back from the consumer and perform the validation step
-            JSONObject json = (JSONObject) parser.parse((String) message);
+            //JSONObject json = (JSONObject) parser.parse((String) message);
 
-            GeoLocateRequest request = new GeoLocateRequest((String) json.get("country"),
-                    (String) json.get("stateProvince"),
-                    (String) json.get("county"),
-                    (String) json.get("locality"));
+            //GeoLocateRequest request = new GeoLocateRequest();
 
             // TODO: invoke an instance of CachingServiceActor service with the request here
 
-            logger.debug(request.toString());
+            //logger.debug(request.toString());
 
             // done, request another record
             consumer.tell(new RequestMoreData(), self());

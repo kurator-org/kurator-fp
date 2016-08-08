@@ -5,8 +5,6 @@ package org.filteredpush.kuration.services.geolocate;
  */
 public class GeoLocateRequest {
 
-    private final String encoding = "UTF-8";
-
     // Constants
 
     final boolean restrictToLowestAdm = true;
@@ -26,7 +24,8 @@ public class GeoLocateRequest {
     private boolean findWaterBody = false;
     private boolean hwyx = false;
 
-    public GeoLocateRequest(String country, String stateProvince, String county, String locality, boolean findWaterBody, boolean hwyx) {
+    public GeoLocateRequest(String country, String stateProvince, String county, String locality, boolean findWaterBody,
+                            boolean hwyx) {
 
         this.country = country;
         this.stateProvince = stateProvince;
@@ -59,7 +58,7 @@ public class GeoLocateRequest {
     }
 
     public boolean hwyx() {
-        return hwyx();
+        return hwyx;
     }
 
 }

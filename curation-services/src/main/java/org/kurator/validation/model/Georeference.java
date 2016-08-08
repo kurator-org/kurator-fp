@@ -1,6 +1,7 @@
-package org.kurator.validation;
+package org.kurator.validation.model;
 
 import org.filteredpush.kuration.util.CurationStatus;
+import org.kurator.validation.CurationEvent;
 
 import java.text.MessageFormat;
 import java.util.HashMap;
@@ -17,7 +18,7 @@ public class Georeference {
 
     // Current state
 
-    private Map<String, String> currentValues;
+    private Map<String, Object> currentValues;
     private CurationStatus curationStatus;
 
     public Georeference(final String country, final String stateProvince, final String county, final String locality,
@@ -25,7 +26,7 @@ public class Georeference {
 
         CurationStatus initialStatus = CurationStatus.INITIALIZED;
 
-        Map<String, String> initialValues = new HashMap<>();
+        Map<String, Object> initialValues = new HashMap<>();
 
         initialValues.put("country", country);
         initialValues.put("stateProvince", stateProvince);
@@ -68,11 +69,11 @@ public class Georeference {
         apply(new CurationEvent(comment, status));
     }
 
-    public void apply(CurationStatus status, Map<String, String> values, String comment) {
+    public void apply(CurationStatus status, Map<String, Object> values, String comment) {
         apply(new CurationEvent(comment, status, values));
     }
 
-    public String get(String key) {
+    public Object get(String key) {
         return currentValues.get(key); // only ok for now because String is immutable
     }
 
@@ -81,26 +82,26 @@ public class Georeference {
     }
 
     public String country() {
-        return get("country");
+        return String.valueOf(get("country"));
     }
 
     public String stateProvince() {
-        return get("stateProvince");
+        return String.valueOf(get("stateProvince"));
     }
 
     public String county() {
-        return get("county");
+        return String.valueOf(get("county"));
     }
 
     public String locality() {
-        return get("locality");
+        return String.valueOf(get("locality"));
     }
 
     public String latitude() {
-        return get("latitude");
+        return String.valueOf(get("latitude"));
     }
 
     public String longitude() {
-        return get("longitude");
+        return String.valueOf(get("longitude"));
     }
 }

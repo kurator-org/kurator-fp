@@ -7,10 +7,9 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.kurator.GeoLocateRequest;
+import org.filteredpush.kuration.services.geolocate.GeoLocateRequest;
 import org.kurator.messages.GeoLocateResponse;
 import org.kurator.messages.RequestMoreData;
-import org.kurator.services.geolocate.model.Georef_Result_Set;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
@@ -38,15 +37,15 @@ public class CachingServiceActor extends UntypedActor {
             GeoLocateRequest request = (GeoLocateRequest) message;
             //System.out.println(request);
 
-            String country = request.getCountry();
-            String state = request.getState();
-            String county = request.getCounty();
-            String locality = request.getLocality();
+            String country = request.country();
+            String state = request.stateProvince();
+            String county = request.county();
+            String locality = request.locality();
 
             // TODO: Implement some form of validation instead
             if (country != null && state != null && county != null && locality != null) {
-                String url = baseUrl + request.constructQueryString(request.getCountry(), request.getState(), request.getCounty(), request.getLocality());
-                fetch(url); // TODO: These futures need a separate thread pool executor service
+                //String url = baseUrl + request.constructQueryString(request.getCountry(), request.getState(), request.getCounty(), request.getLocality());
+               // fetch(url); // TODO: These futures need a separate thread pool executor service
             } else {
                 //System.out.println("Skipping..");
             }
@@ -57,13 +56,13 @@ public class CachingServiceActor extends UntypedActor {
             //}
         } if (message instanceof GeoLocateResponse) {
             System.out.println("Response: " + message);
-            Georef_Result_Set result = ((GeoLocateResponse) message).get();
-            if (Integer.parseInt(result.getNumResults()) > 0) System.out.println(result.getNumResults());
+            //Georef_Result_Set result = ((GeoLocateResponse) message).get();
+            //if (Integer.parseInt(result.getNumResults()) > 0) System.out.println(result.getNumResults());
 
             count++;
             futures--;
             //if (count % 1000 == 0)
-                System.out.println(result + ": " + count + " requests processed. (" + futures + " futures)" );
+                //System.out.println(result + ": " + count + " requests processed. (" + futures + " futures)" );
 
             sender().tell(new RequestMoreData(), self());
         }
@@ -96,11 +95,12 @@ public class CachingServiceActor extends UntypedActor {
                 }
 
                 // parse the response
-                XStream xstream = new XStream();
-                xstream.alias("Georef_Result_Set", Georef_Result_Set.class);
-                Georef_Result_Set result = (Georef_Result_Set) xstream.fromXML(responseXml.toString());
+                //XStream xstream = new XStream();
+                //xstream.alias("Georef_Result_Set", Georef_Result_Set.class);
+                //Georef_Result_Set result = (Georef_Result_Set) xstream.fromXML(responseXml.toString());
 
-                return new GeoLocateResponse(result);
+                //return new GeoLocateResponse(result);
+                return null;
             }
         }, ec);
 

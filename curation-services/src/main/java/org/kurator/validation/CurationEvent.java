@@ -12,9 +12,9 @@ import java.util.Map;
 public class CurationEvent {
     private final String comment;
     private final CurationStatus status;
-    private final Map<String, String> updates = new HashMap<>();
+    private final Map<String, Object> updates = new HashMap<>();
 
-    public CurationEvent(final String comment, final CurationStatus status, final Map<String, String> correction) {
+    public CurationEvent(final String comment, final CurationStatus status, final Map<String, Object> correction) {
         this.comment = comment;
         this.status = status;
 
@@ -37,7 +37,7 @@ public class CurationEvent {
         return status;
     }
 
-    public Map<String, String> getUpdates() {
+    public Map<String, Object> getUpdates() {
         return Collections.unmodifiableMap(updates);
     }
 }

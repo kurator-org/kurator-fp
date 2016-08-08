@@ -54,11 +54,11 @@ public class KafkaProducerActor extends UntypedActor {
 
     public void onReceive(Object message) throws Throwable {
         if (message instanceof PublishData) {
-            //logger.debug("Sending message via producer assigned to topic {}", topic);
 
             // publish message
             Future<SendSuccessful> future = send(((PublishData) message).data());
             pipe(future, dispatcher).to(sender(), self());
+
         } else {
             unhandled(message); // TODO: producer currently only supports messages serialized as a String
         }
@@ -66,10 +66,12 @@ public class KafkaProducerActor extends UntypedActor {
 
     public Future<SendSuccessful> send(final String data) throws ExecutionException, InterruptedException {
         Future<SendSuccessful> future = future(() -> {
+
             ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, data);
             RecordMetadata metadata = producer.send(record).get(); // TODO: callbacks for error and success
             //logger.debug("Producer send successful.");
             return new SendSuccessful(metadata);
+
         }, getContext().system().dispatcher());
 
         return future;

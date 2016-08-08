@@ -38,8 +38,10 @@ public class KafkaSubscriberActor extends UntypedActor {
 
     public void onReceive(Object message) throws Throwable {
         if (message instanceof HasMoreData) {
+
             logger.debug("Consumer has more data." );
             sender().tell(new RequestMoreData(), self());
+
         }
 
         else if (message instanceof ConsumerDrained) {
@@ -47,20 +49,24 @@ public class KafkaSubscriberActor extends UntypedActor {
         }
 
         else if (message instanceof ReceivedMoreData) {
+
             // do work
             final String data = ((ReceivedMoreData) message).data();
 
             future = future(callable(data), dispatcher);
             pipe(future, dispatcher).to(self(), sender());
+
         }
 
         else if (message instanceof WorkComplete) {
+
             count++;
             if (count % 1000 == 0) {
                 System.out.println(self() + " - Processed " + count + " records. Last record: " + ((WorkComplete) message).result());
             }
 
             sender().tell(new RequestMoreData(), self());
+
         }
     }
 

@@ -5,12 +5,6 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import jdk.internal.util.xml.impl.Input;
-import org.apache.avro.data.Json;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.noggit.JSONParser;
-import org.filteredpush.kuration.util.SpecimenRecord;
 import org.gbif.dwc.record.StarRecord;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.Term;
@@ -57,7 +51,7 @@ public class DwCaExtractor extends UntypedActor {
         Future<DwcArchiveExtracted> future = future(new Callable<DwcArchiveExtracted>() {
             public DwcArchiveExtracted call() throws Exception {
                 Path outputDir = Files.createTempDirectory(file.getName().replace(".", "_") + "_content");
-                System.out.println(outputDir);
+
                 ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(file));
                 ZipEntry entry = zipInputStream.getNextEntry();
 
@@ -107,17 +101,17 @@ public class DwCaExtractor extends UntypedActor {
                         foundContained = true;
                     } catch (Exception e1) {
                         logger.error(e.getMessage());
-                        System.out.println("Unable to open archive directory " + e.getMessage());
-                        System.out.println("Unable to open directory contained within archive directory " + e1.getMessage());
+                        logger.error("Unable to open archive directory " + e.getMessage());
+                        logger.error("Unable to open directory contained within archive directory " + e1.getMessage());
                     }
                 }
             }
             if (!foundContained) {
-                System.out.println("Unable to open archive directory " + e.getMessage());
+                logger.error("Unable to open archive directory " + e.getMessage());
             }
         } catch (IOException e) {
             logger.error(e.getMessage());
-            System.out.println("Unable to open archive directory " + e.getMessage());
+            logger.error("Unable to open archive directory " + e.getMessage());
         }
         return result;
     }
@@ -128,11 +122,11 @@ public class DwCaExtractor extends UntypedActor {
             return result;
         }
         if (dwcArchive.getCore() == null) {
-            System.out.println("Cannot locate the core datafile in " + dwcArchive.getLocation().getPath());
+            logger.error("Cannot locate the core datafile in " + dwcArchive.getLocation().getPath());
             return result;
         }
-        System.out.println("Core file found: " + dwcArchive.getCore().getLocations());
-        System.out.println("Core row type: " + dwcArchive.getCore().getRowType());
+        logger.error("Core file found: " + dwcArchive.getCore().getLocations());
+        logger.error("Core row type: " + dwcArchive.getCore().getRowType());
         if (dwcArchive.getCore().getRowType().equals(DwcTerm.Occurrence) ) {
 
             // check expectations
@@ -148,7 +142,7 @@ public class DwCaExtractor extends UntypedActor {
 
             for (DwcTerm term : expectedTerms) {
                 if (!dwcArchive.getCore().hasTerm(term)) {
-                    System.out.println("Cannot find " + term + " in core of input dataset.");
+                    logger.error("Cannot find " + term + " in core of input dataset.");
                 }
             }
 
@@ -163,13 +157,16 @@ public class DwCaExtractor extends UntypedActor {
     @Override
     public void onReceive(Object message) throws Throwable {
         if (message instanceof ExtractDwcArchive) {
+
             // Extract the dwc archive in a future
             File file = ((ExtractDwcArchive) message).file();
             Future<DwcArchiveExtracted> future = unzip(file);
 
             // pipe the result of the future back to self
             pipe(future, ec).to(self(), sender());
+
         } else if (message instanceof DwcArchiveExtracted) {
+
             // initialize the actor and start reading records
             Archive archive = ((DwcArchiveExtracted) message).archive();
 
@@ -178,7 +175,9 @@ public class DwCaExtractor extends UntypedActor {
             if (iterator.hasNext()) {
                 self().tell(new NextRecord(), sender());
             }
+
         } else if (message instanceof NextRecord) {
+
             StarRecord record = iterator.next();
 
             // serialize record as json
@@ -189,11 +188,14 @@ public class DwCaExtractor extends UntypedActor {
 
             // publish record via kafka producer actor
             producer.tell(response.toJSONString(), self());
+
         } else if (message instanceof KafkaProducerActor.SendSuccessful) {
+
             // if the message was published successfully send another record
             if (iterator.hasNext()) {
                 self().tell(new NextRecord(), sender());
             }
+
         }
     }
 
